@@ -8,6 +8,8 @@ import (
 	"go_catalog_service/storage"
 	"log"
 
+	"github.com/google/uuid"
+	"github.com/gosimple/slug"
 	"github.com/jackc/pgx/v4/pgxpool"
 )
 
@@ -21,80 +23,87 @@ func NewCategoryRepo(db *pgxpool.Pool) storage.CategoryRepoI {
 	}
 }
 
-// func (c *categoryRepo) Create(ctx context.Context, req *ct.CreateCategory) (resp *ct.Category, err error) {
+func (c *categoryRepo) CreateCategory(ctx context.Context, req *ct.CreateCategory) (*ct.GetCategory, error) {
 
-// 	resp = &ct.Category{}
+	id := uuid.NewString()
+	slug := slug.Make(req.NameEn)
+	if req.ParentId == "" {
+		req.ParentId = id
+	}
 
-// 	id := uuid.NewString()
+	_, err := c.db.Exec(ctx, `
+		INSERT INTO category (
+			id,
+			slug,
+			name_uz,
+			name_ru,
+			name_en,
+			active,
+			order_no,
+			parent_id
+		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8
+		)`,
+		id,
+		slug,
+		string(req.NameUz),
+		string(req.NameRu),
+		string(req.NameEn),
+		req.Active,
+		req.OrderNo,
+		string(req.ParentId))
+	if err != nil {
+		log.Println("error while creating category")
+		return nil, err
+	}
 
-// 	if req.ParentId == "" {
-// 		req.ParentId = id
-// 	}
+	category, err := c.GetCategoryById(ctx, &ct.CategoryPrimaryKey{Id: id})
+	if err != nil {
+		log.Println("error while getting category by id")
+		return nil, err
+	}
+	return category, nil
+}
 
-// 	_, err = c.db.Exec(ctx, `
-// 		INSERT INTO category (
-// 			id,
-// 			slug,
-// 			name_uz,
-// 			name_ru,
-// 			name_en,
-// 			active,
-// 			order_no,
-// 			parent_id
-// 		) VALUES (
-// 			$1,
-// 			$2,
-// 			$3,
-// 			$4,
-// 			$5,
-// 			$6,
-// 			$7,
-// 			$8
-// 		) `, id, req.Slug, req.NameUz, req.NameRu, req.NameEn, req.Active, req.OrderNo, req.ParentId)
+func (c *categoryRepo) UpdateCategory(ctx context.Context, req *ct.UpdateCategory) (resp *ct.GetCategory, err error) {
 
-// 	if err != nil {
-// 		log.Println("error while creating category")
-// 		return nil, err
-// 	}
+	id := uuid.NewString()
+	slug := slug.Make(req.NameEn)
+	if req.ParentId == "" {
+		req.ParentId = id
+	}
 
-// 	category, err := c.GetByID(ctx, &ct.CategoryPrimaryKey{Id: id})
-// 	if err != nil {
-// 		log.Println("error while getting category by id")
-// 		return nil, err
-// 	}
+	_, err = c.db.Exec(ctx, `
+		UPDATE category SET
+		slug = $1,
+		name_uz = $2,
+		name_ru = $3,
+		name_en = $4,
+		active = $5,
+		order_no = $6,
+		parent_id = $7,
+		updated_at = NOW()
+		WHERE id = $8
+		`,
+		slug,
+		req.NameUz,
+		req.NameRu,
+		req.NameEn,
+		req.Active,
+		req.OrderNo,
+		req.ParentId,
+		id)
+	if err != nil {
+		log.Println("error while updating category")
+		return nil, err
+	}
 
-// 	return category, nil
-// }
-
-// func (c *categoryRepo) GetListCategory(ctx context.Context, req *ct.CategoryPrimaryKey) (resp *ct.GetCategory, err error) {
-
-// 	resp = &ct.GetCategory{}
-
-// 	var ParentId sql.NullString
-
-// 	err = c.db.QueryRow(ctx, `
-// 		SELECT
-// 			id,
-// 			slug,
-// 			name_uz,
-// 			name_ru,
-// 			name_en,
-// 			active,
-// 			order_no,
-// 			parent_id
-// 		FROM category
-// 		WHERE id = $1
-// 	`, req.Id).Scan(&resp.Id, &resp.Slug, &resp.NameUz, &resp.NameRu, &resp.NameEn, &resp.Active, &resp.OrderNo, &ParentId)
-
-// 	if err != nil {
-// 		log.Println("error while getting category by id")
-// 		return nil, err
-// 	}
-
-// 	resp.ParentId = ParentId.String
-
-// 	return resp, nil
-// }
+	category, err := c.GetCategoryById(ctx, &ct.CategoryPrimaryKey{Id: id})
+	if err != nil {
+		log.Println("error while getting category by id")
+		return nil, err
+	}
+	return category, nil
+}
 
 func (c *categoryRepo) GetListCategory(ctx context.Context, req *ct.GetListCategoryRequest) (resp *ct.GetListCategoryResponse, err error) {
 	categories := ct.GetListCategoryResponse{}
@@ -148,4 +157,70 @@ func (c *categoryRepo) GetListCategory(ctx context.Context, req *ct.GetListCateg
 	}
 
 	return &categories, nil
+}
+
+func (c *categoryRepo) GetCategoryById(ctx context.Context, id *ct.CategoryPrimaryKey) (resp *ct.GetCategory, err error) {
+	var (
+		category   ct.GetCategory
+		parent_id  sql.NullString
+		name_uz    sql.NullString
+		name_ru    sql.NullString
+		name_en    sql.NullString
+		created_at sql.NullString
+		updated_at sql.NullString
+		deleted_at sql.NullString
+	)
+
+	query := `SELECT
+				id,
+				slug,
+				name_uz,
+				name_ru,
+				name_en,
+				active,
+				order_no,
+				parent_id,
+				created_at,
+				updated_at
+			FROM category
+			WHERE id = $1`
+
+	rows := c.db.QueryRow(ctx, query, id)
+
+	if err = rows.Scan(&category.Id,
+		&category.Slug,
+		&name_uz,
+		&name_ru,
+		&name_en,
+		&category.Active,
+		&category.OrderNo,
+		&parent_id,
+		&created_at,
+		&updated_at); err != nil {
+		return resp, err
+	}
+	category.ParentId = pkg.NullStringToString(parent_id)
+	category.NameUz = pkg.NullStringToString(name_uz)
+	category.NameRu = pkg.NullStringToString(name_ru)
+	category.NameEn = pkg.NullStringToString(name_en)
+	category.CreatedAt = pkg.NullStringToString(created_at)
+	category.UpdatedAt = pkg.NullStringToString(updated_at)
+	category.DeletedAt = pkg.NullStringToString(deleted_at)
+
+	return &category, nil
+}
+
+func (c *categoryRepo) DeleteCategory(ctx context.Context, id *ct.CategoryPrimaryKey) (err error) {
+
+	_, err = c.db.Exec(ctx, `
+		UPDATE category SET
+		deleted_at = NOW()
+		WHERE id = $1
+		`,
+		id)
+
+	if err != nil {
+		return err
+	}
+	return nil
 }

@@ -11,9 +11,9 @@ type StorageI interface {
 }
 
 type CategoryRepoI interface {
-	// Create(ctx context.Context, req *ct.CreateCategory) (resp *ct.GetCategory, err error)
+	CreateCategory(ctx context.Context, req *ct.CreateCategory) (resp *ct.GetCategory, err error)
+	UpdateCategory(ctx context.Context, req *ct.UpdateCategory) (resp *ct.GetCategory, err error)
 	GetListCategory(ctx context.Context, req *ct.GetListCategoryRequest) (resp *ct.GetListCategoryResponse, err error)
-	// GetAll(ctx context.Context, req *ct.GetListCategoryRequest) (resp *ct.GetListCategoryResponse, err error)
-	// Update(ctx context.Context, req *ct.Category) (resp *ct.Category, err error)
-	// Delete(ctx context.Context, req *ct.Category) error
+	GetCategoryById(ctx context.Context, id *ct.CategoryPrimaryKey) (resp *ct.GetCategory, err error)
+	DeleteCategory(ctx context.Context, id *ct.CategoryPrimaryKey) (err error)
 }
