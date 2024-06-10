@@ -64,7 +64,7 @@ func (c *categoryRepo) CreateCategory(ctx context.Context, req *ct.CreateCategor
 	return category, nil
 }
 
-func (c *categoryRepo) UpdateCategory(ctx context.Context, req *ct.UpdateCategory) (resp *ct.GetCategory, err error) {
+func (c *categoryRepo) UpdateCategory(ctx context.Context, req *ct.UpdateCategory) (*ct.GetCategory, error) {
 
 	id := uuid.NewString()
 	slug := slug.Make(req.NameEn)
@@ -72,7 +72,7 @@ func (c *categoryRepo) UpdateCategory(ctx context.Context, req *ct.UpdateCategor
 		req.ParentId = id
 	}
 
-	_, err = c.db.Exec(ctx, `
+	_, err := c.db.Exec(ctx, `
 		UPDATE category SET
 		slug = $1,
 		name_uz = $2,
@@ -105,7 +105,7 @@ func (c *categoryRepo) UpdateCategory(ctx context.Context, req *ct.UpdateCategor
 	return category, nil
 }
 
-func (c *categoryRepo) GetListCategory(ctx context.Context, req *ct.GetListCategoryRequest) (resp *ct.GetListCategoryResponse, err error) {
+func (c *categoryRepo) GetListCategory(ctx context.Context, req *ct.GetListCategoryRequest) (*ct.GetListCategoryResponse, error) {
 	categories := ct.GetListCategoryResponse{}
 	filter := ""
 	offest := (req.Offset - 1) * req.Limit
@@ -145,7 +145,7 @@ func (c *categoryRepo) GetListCategory(ctx context.Context, req *ct.GetListCateg
 			&category.Active,
 			&category.OrderNo,
 			&parent_id); err != nil {
-			return resp, err
+			return &categories, err
 		}
 		category.ParentId = pkg.NullStringToString(parent_id)
 		categories.Categories = append(categories.Categories, &category)
@@ -153,22 +153,17 @@ func (c *categoryRepo) GetListCategory(ctx context.Context, req *ct.GetListCateg
 
 	err = c.db.QueryRow(ctx, `SELECT count(*) from category WHERE TRUE `+filter+``).Scan(&categories.Count)
 	if err != nil {
-		return resp, err
+		return &categories, err
 	}
 
 	return &categories, nil
 }
 
-func (c *categoryRepo) GetCategoryById(ctx context.Context, id *ct.CategoryPrimaryKey) (resp *ct.GetCategory, err error) {
+func (c *categoryRepo) GetCategoryById(ctx context.Context, id *ct.CategoryPrimaryKey) (*ct.GetCategory, error) {
 	var (
 		category   ct.GetCategory
-		parent_id  sql.NullString
-		name_uz    sql.NullString
-		name_ru    sql.NullString
-		name_en    sql.NullString
 		created_at sql.NullString
 		updated_at sql.NullString
-		deleted_at sql.NullString
 	)
 
 	query := `SELECT
@@ -185,34 +180,30 @@ func (c *categoryRepo) GetCategoryById(ctx context.Context, id *ct.CategoryPrima
 			FROM category
 			WHERE id = $1`
 
-	rows := c.db.QueryRow(ctx, query, id)
+	rows := c.db.QueryRow(ctx, query, id.Id)
 
-	if err = rows.Scan(&category.Id,
+	if err := rows.Scan(&category.Id,
 		&category.Slug,
-		&name_uz,
-		&name_ru,
-		&name_en,
+		&category.NameUz,
+		&category.NameRu,
+		&category.NameEn,
 		&category.Active,
 		&category.OrderNo,
-		&parent_id,
+		&category.ParentId,
 		&created_at,
 		&updated_at); err != nil {
-		return resp, err
+		return &category, err
 	}
-	category.ParentId = pkg.NullStringToString(parent_id)
-	category.NameUz = pkg.NullStringToString(name_uz)
-	category.NameRu = pkg.NullStringToString(name_ru)
-	category.NameEn = pkg.NullStringToString(name_en)
+
 	category.CreatedAt = pkg.NullStringToString(created_at)
 	category.UpdatedAt = pkg.NullStringToString(updated_at)
-	category.DeletedAt = pkg.NullStringToString(deleted_at)
 
 	return &category, nil
 }
 
-func (c *categoryRepo) DeleteCategory(ctx context.Context, id *ct.CategoryPrimaryKey) (err error) {
+func (c *categoryRepo) DeleteCategory(ctx context.Context, id *ct.CategoryPrimaryKey) error {
 
-	_, err = c.db.Exec(ctx, `
+	_, err := c.db.Exec(ctx, `
 		UPDATE category SET
 		deleted_at = NOW()
 		WHERE id = $1

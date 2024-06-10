@@ -17,11 +17,6 @@ type CategoryService struct {
 	services client.ServiceManagerI
 }
 
-// mustEmbedUnimplementedCategoryServiceServer implements catalog_service.CategoryServiceServer.
-func (f *CategoryService) mustEmbedUnimplementedCategoryServiceServer() {
-	panic("unimplemented")
-}
-
 func NewCategoryService(cfg config.Config, log logger.LoggerI, strg storage.StorageI, srvs client.ServiceManagerI) *CategoryService {
 	return &CategoryService{
 		cfg:      cfg,
@@ -31,11 +26,11 @@ func NewCategoryService(cfg config.Config, log logger.LoggerI, strg storage.Stor
 	}
 }
 
-func (f *CategoryService) Create(ctx context.Context, req *catalog_service.CreateCategory) (resp *catalog_service.GetCategory, err error) {
+func (f *CategoryService) Create(ctx context.Context, req *catalog_service.CreateCategory) (*catalog_service.GetCategory, error) {
 
 	f.log.Info("---CreateCategory--->>>", logger.Any("req", req))
 
-	resp, err = f.strg.Category().CreateCategory(ctx, req)
+	resp, err := f.strg.Category().CreateCategory(ctx, req)
 	if err != nil {
 		f.log.Error("---CreateCategory--->>>", logger.Error(err))
 		return &catalog_service.GetCategory{}, err
@@ -43,11 +38,11 @@ func (f *CategoryService) Create(ctx context.Context, req *catalog_service.Creat
 
 	return resp, nil
 }
-func (f *CategoryService) Update(ctx context.Context, req *catalog_service.UpdateCategory) (resp *catalog_service.GetCategory, err error) {
+func (f *CategoryService) Update(ctx context.Context, req *catalog_service.UpdateCategory) (*catalog_service.GetCategory, error) {
 
 	f.log.Info("---UpdateCategory--->>>", logger.Any("req", req))
 
-	resp, err = f.strg.Category().UpdateCategory(ctx, req)
+	resp, err := f.strg.Category().UpdateCategory(ctx, req)
 	if err != nil {
 		f.log.Error("---UpdateCategory--->>>", logger.Error(err))
 		return &catalog_service.GetCategory{}, err
@@ -56,10 +51,10 @@ func (f *CategoryService) Update(ctx context.Context, req *catalog_service.Updat
 	return resp, nil
 }
 
-func (f *CategoryService) GetList(ctx context.Context, req *catalog_service.GetListCategoryRequest) (resp *catalog_service.GetListCategoryResponse, err error) {
+func (f *CategoryService) GetList(ctx context.Context, req *catalog_service.GetListCategoryRequest) (*catalog_service.GetListCategoryResponse, error) {
 	f.log.Info("---GetListCategory--->>>", logger.Any("req", req))
 
-	resp, err = f.strg.Category().GetListCategory(ctx, req)
+	resp, err := f.strg.Category().GetListCategory(ctx, req)
 	if err != nil {
 		f.log.Error("---GetListCategory--->>>", logger.Error(err))
 		return &catalog_service.GetListCategoryResponse{}, err
@@ -68,10 +63,10 @@ func (f *CategoryService) GetList(ctx context.Context, req *catalog_service.GetL
 	return resp, nil
 }
 
-func (f *CategoryService) GetByID(ctx context.Context, id *catalog_service.CategoryPrimaryKey) (resp *catalog_service.GetCategory, err error) {
+func (f *CategoryService) GetByID(ctx context.Context, id *catalog_service.CategoryPrimaryKey) (*catalog_service.GetCategory, error) {
 	f.log.Info("---GetCategory--->>>", logger.Any("req", id))
 
-	resp, err = f.strg.Category().GetCategoryById(ctx, id)
+	resp, err := f.strg.Category().GetCategoryById(ctx, id)
 	if err != nil {
 		f.log.Error("---GetCategory--->>>", logger.Error(err))
 		return &catalog_service.GetCategory{}, err
@@ -80,11 +75,11 @@ func (f *CategoryService) GetByID(ctx context.Context, id *catalog_service.Categ
 	return resp, nil
 }
 
-func (f *CategoryService) Delete(ctx context.Context, req *catalog_service.CategoryPrimaryKey) (empty *catalog_service.Empty, err error) {
+func (f *CategoryService) Delete(ctx context.Context, req *catalog_service.CategoryPrimaryKey) (*catalog_service.Empty, error) {
 
 	f.log.Info("---DeleteCategory--->>>", logger.Any("req", req))
 
-	err = f.strg.Category().DeleteCategory(ctx, req)
+	err := f.strg.Category().DeleteCategory(ctx, req)
 	if err != nil {
 		f.log.Error("---DeleteCategory--->>>", logger.Error(err))
 		return nil, err

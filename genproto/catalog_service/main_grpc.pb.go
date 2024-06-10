@@ -83,7 +83,7 @@ func (c *categoryServiceClient) Delete(ctx context.Context, in *CategoryPrimaryK
 }
 
 // CategoryServiceServer is the server API for CategoryService service.
-// All implementations must embed UnimplementedCategoryServiceServer
+// All implementations should embed UnimplementedCategoryServiceServer
 // for forward compatibility
 type CategoryServiceServer interface {
 	Create(context.Context, *CreateCategory) (*GetCategory, error)
@@ -91,10 +91,9 @@ type CategoryServiceServer interface {
 	GetList(context.Context, *GetListCategoryRequest) (*GetListCategoryResponse, error)
 	Update(context.Context, *UpdateCategory) (*GetCategory, error)
 	Delete(context.Context, *CategoryPrimaryKey) (*Empty, error)
-	mustEmbedUnimplementedCategoryServiceServer()
 }
 
-// UnimplementedCategoryServiceServer must be embedded to have forward compatible implementations.
+// UnimplementedCategoryServiceServer should be embedded to have forward compatible implementations.
 type UnimplementedCategoryServiceServer struct {
 }
 
@@ -113,7 +112,6 @@ func (UnimplementedCategoryServiceServer) Update(context.Context, *UpdateCategor
 func (UnimplementedCategoryServiceServer) Delete(context.Context, *CategoryPrimaryKey) (*Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Delete not implemented")
 }
-func (UnimplementedCategoryServiceServer) mustEmbedUnimplementedCategoryServiceServer() {}
 
 // UnsafeCategoryServiceServer may be embedded to opt out of forward compatibility for this service.
 // Use of this interface is not recommended, as added methods to CategoryServiceServer will

@@ -22,9 +22,10 @@ for x in $(find ${CURRENT_DIR}/protos/* -type d); do
          --plugin="protoc-gen-go-grpc=${PROTOC_GEN_GO_GRPC}" \
          -I=${x} -I=${CURRENT_DIR}/protos -I /usr/local/include \
          --go_out=${CURRENT_DIR} \
-         --go-grpc_out=${CURRENT_DIR} \
+         --go-grpc_out=require_unimplemented_servers=false:${CURRENT_DIR} \
          ${x}/*.proto
 done
+
 
 
 
