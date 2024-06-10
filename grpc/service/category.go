@@ -4,10 +4,12 @@ import (
 	"context"
 	"go_catalog_service/config"
 	"go_catalog_service/genproto/catalog_service"
+
 	"go_catalog_service/grpc/client"
 	"go_catalog_service/storage"
 
 	"github.com/saidamir98/udevs_pkg/logger"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 type CategoryService struct {
@@ -75,15 +77,15 @@ func (f *CategoryService) GetByID(ctx context.Context, id *catalog_service.Categ
 	return resp, nil
 }
 
-func (f *CategoryService) Delete(ctx context.Context, req *catalog_service.CategoryPrimaryKey) (*catalog_service.Empty, error) {
+func (f *CategoryService) Delete(ctx context.Context, req *catalog_service.CategoryPrimaryKey) (*emptypb.Empty, error) {
 
 	f.log.Info("---DeleteCategory--->>>", logger.Any("req", req))
 
-	err := f.strg.Category().DeleteCategory(ctx, req)
+	_, err := f.strg.Category().DeleteCategory(ctx, req)
 	if err != nil {
 		f.log.Error("---DeleteCategory--->>>", logger.Error(err))
-		return nil, err
+		return &emptypb.Empty{}, err
 	}
 
-	return nil, nil
+	return &emptypb.Empty{}, nil
 }

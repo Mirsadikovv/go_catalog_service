@@ -3,6 +3,7 @@ module go_catalog_service
 go 1.22.1
 
 require (
+	github.com/golang/protobuf v1.5.4
 	github.com/google/uuid v1.6.0
 	github.com/gosimple/slug v1.14.0
 	github.com/jackc/pgx/v4 v4.18.3

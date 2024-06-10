@@ -8,6 +8,8 @@ import (
 	"go_catalog_service/storage"
 	"log"
 
+	"google.golang.org/protobuf/types/known/emptypb"
+
 	"github.com/google/uuid"
 	"github.com/gosimple/slug"
 	"github.com/jackc/pgx/v4/pgxpool"
@@ -201,17 +203,17 @@ func (c *categoryRepo) GetCategoryById(ctx context.Context, id *ct.CategoryPrima
 	return &category, nil
 }
 
-func (c *categoryRepo) DeleteCategory(ctx context.Context, id *ct.CategoryPrimaryKey) error {
+func (c *categoryRepo) DeleteCategory(ctx context.Context, id *ct.CategoryPrimaryKey) (emptypb.Empty, error) {
 
 	_, err := c.db.Exec(ctx, `
 		UPDATE category SET
 		deleted_at = NOW()
 		WHERE id = $1
 		`,
-		id)
+		id.Id)
 
 	if err != nil {
-		return err
+		return emptypb.Empty{}, err
 	}
-	return nil
+	return emptypb.Empty{}, nil
 }
