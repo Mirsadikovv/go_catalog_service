@@ -46,5 +46,7 @@ CREATE TABLE IF NOT EXISTS product_reviews (
     text VARCHAR(500),
     rating FLOAT,
     order_id UUID,
-    created_at TIMESTAMP DEFAULT NOW()
+    created_at TIMESTAMP DEFAULT NOW(),
+    deleted_at TIMESTAMP 
 );
+

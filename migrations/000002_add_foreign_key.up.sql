@@ -1,0 +1,1 @@
+ALTER TABLE product_reviews ADD FOREIGN KEY (product_id) REFERENCES product (id);

@@ -68,11 +68,7 @@ func (c *categoryRepo) CreateCategory(ctx context.Context, req *ct.CreateCategor
 
 func (c *categoryRepo) UpdateCategory(ctx context.Context, req *ct.UpdateCategory) (*ct.GetCategory, error) {
 
-	id := uuid.NewString()
 	slug := slug.Make(req.NameEn)
-	if req.ParentId == "" {
-		req.ParentId = id
-	}
 
 	_, err := c.db.Exec(ctx, `
 		UPDATE category SET
@@ -93,13 +89,13 @@ func (c *categoryRepo) UpdateCategory(ctx context.Context, req *ct.UpdateCategor
 		req.Active,
 		req.OrderNo,
 		req.ParentId,
-		id)
+		req.Id)
 	if err != nil {
 		log.Println("error while updating category")
 		return nil, err
 	}
 
-	category, err := c.GetCategoryById(ctx, &ct.CategoryPrimaryKey{Id: id})
+	category, err := c.GetCategoryById(ctx, &ct.CategoryPrimaryKey{Id: req.Id})
 	if err != nil {
 		log.Println("error while getting category by id")
 		return nil, err
@@ -124,13 +120,13 @@ func (c *categoryRepo) GetListCategory(ctx context.Context, req *ct.GetListCateg
 				order_no,
 				parent_id
 			FROM category
-			WHERE TRUE ` + filter + `
+			WHERE TRUE AND deleted_at is null ` + filter + `
 			OFFSET $1 LIMIT $2
 `
 	rows, err := c.db.Query(ctx, query, offest, req.Limit)
 
 	if err != nil {
-		log.Println("error while getting category by id")
+		log.Println("error while getting all categories")
 		return nil, err
 	}
 	defer rows.Close()
@@ -153,7 +149,7 @@ func (c *categoryRepo) GetListCategory(ctx context.Context, req *ct.GetListCateg
 		categories.Categories = append(categories.Categories, &category)
 	}
 
-	err = c.db.QueryRow(ctx, `SELECT count(*) from category WHERE TRUE `+filter+``).Scan(&categories.Count)
+	err = c.db.QueryRow(ctx, `SELECT count(*) from category WHERE TRUE AND deleted_at is null`+filter+``).Scan(&categories.Count)
 	if err != nil {
 		return &categories, err
 	}
@@ -180,7 +176,7 @@ func (c *categoryRepo) GetCategoryById(ctx context.Context, id *ct.CategoryPrima
 				created_at,
 				updated_at
 			FROM category
-			WHERE id = $1`
+			WHERE id = $1 AND deleted_at IS NULL`
 
 	rows := c.db.QueryRow(ctx, query, id.Id)
 

@@ -3,6 +3,9 @@ package grpc
 import (
 	"go_catalog_service/config"
 	"go_catalog_service/genproto/catalog_service"
+	"go_catalog_service/genproto/product_service"
+	"go_catalog_service/genproto/review_service"
+
 	"go_catalog_service/grpc/client"
 	"go_catalog_service/grpc/service"
 	"go_catalog_service/storage"
@@ -17,6 +20,9 @@ func SetUpServer(cfg config.Config, log logger.LoggerI, strg storage.StorageI, s
 	grpcServer = grpc.NewServer()
 
 	catalog_service.RegisterCategoryServiceServer(grpcServer, service.NewCategoryService(cfg, log, strg, srvc))
+	product_service.RegisterProductServiceServer(grpcServer, service.NewProductService(cfg, log, strg, srvc))
+	review_service.RegisterReviewServiceServer(grpcServer, service.NewReviewService(cfg, log, strg, srvc))
+
 	reflection.Register(grpcServer)
 	return
 }
