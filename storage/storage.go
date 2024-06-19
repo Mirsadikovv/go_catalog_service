@@ -3,6 +3,7 @@ package storage
 import (
 	"context"
 	ct "go_catalog_service/genproto/catalog_service"
+	pc "go_catalog_service/genproto/product_categories_service"
 	pd "go_catalog_service/genproto/product_service"
 	rv "go_catalog_service/genproto/review_service"
 
@@ -14,6 +15,7 @@ type StorageI interface {
 	Category() CategoryRepoI
 	Product() ProductRepoI
 	Review() ReviewRepoI
+	ProductCategories() ProductCategoriesRepoI
 }
 
 type CategoryRepoI interface {
@@ -36,4 +38,11 @@ type ReviewRepoI interface {
 	CreateReview(context.Context, *rv.CreateReview) (*rv.GetReview, error)
 	GetListReview(context.Context, *rv.GetListReviewRequest) (*rv.GetListReviewResponse, error)
 	DeleteReview(context.Context, *rv.ReviewPrimaryKey) (emptypb.Empty, error)
+}
+
+type ProductCategoriesRepoI interface {
+	CreateProductCategories(context.Context, *pc.CreateProductCategories) (*pc.GetProductCategories, error)
+	UpdateProductCategories(context.Context, *pc.UpdateProductCategories) (*pc.GetProductCategories, error)
+	GetProductCategoriesById(context.Context, *pc.ProductCategoriesPrimaryKey) (*pc.GetProductCategories, error)
+	DeleteProductCategories(context.Context, *pc.ProductCategoriesPrimaryKey) (emptypb.Empty, error)
 }

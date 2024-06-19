@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"go_catalog_service/config"
+	"go_catalog_service/genproto/product_categories_service"
 	"go_catalog_service/genproto/product_service"
 
 	"go_catalog_service/grpc/client"
@@ -35,8 +36,16 @@ func (f *ProductService) Create(ctx context.Context, req *product_service.Create
 	resp, err := f.strg.Product().CreateProduct(ctx, req)
 	if err != nil {
 		f.log.Error("---CreateProduct--->>>", logger.Error(err))
-		return &product_service.GetProduct{}, err
+		return resp, err
 	}
+	req2 := &product_categories_service.CreateProductCategories{}
+	req2.ProductId = resp.Id
+	req2.CategoryId = req.CategoryId
+	resp2, err := f.strg.ProductCategories().CreateProductCategories(ctx, req2)
+	if err != nil {
+		f.log.Error("---CreateProduct--->>>", logger.Error(err))
+	}
+	println(resp2)
 
 	return resp, nil
 }

@@ -12,10 +12,11 @@ import (
 )
 
 type Store struct {
-	db       *pgxpool.Pool
-	category storage.CategoryRepoI
-	product  storage.ProductRepoI
-	review   storage.ReviewRepoI
+	db               *pgxpool.Pool
+	category         storage.CategoryRepoI
+	product          storage.ProductRepoI
+	review           storage.ReviewRepoI
+	product_category storage.ProductCategoriesRepoI
 }
 
 func NewPostgres(ctx context.Context, cfg config.Config) (storage.StorageI, error) {
@@ -78,4 +79,12 @@ func (s *Store) Review() storage.ReviewRepoI {
 	}
 
 	return s.review
+}
+
+func (s *Store) ProductCategories() storage.ProductCategoriesRepoI {
+	if s.product_category == nil {
+		s.product_category = NewProductCategoriesRepo(s.db)
+	}
+
+	return s.product_category
 }
