@@ -3,6 +3,7 @@ package postgres
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	ct "go_catalog_service/genproto/catalog_service"
 	"go_catalog_service/pkg"
 	"go_catalog_service/storage"
@@ -29,9 +30,15 @@ func (c *categoryRepo) CreateCategory(ctx context.Context, req *ct.CreateCategor
 
 	id := uuid.NewString()
 	slug := slug.Make(req.NameEn)
+	var parentId sql.NullString
 	if req.ParentId == "" {
-		req.ParentId = id
+		parentId = sql.NullString{Valid: false} // Устанавливаем NULL значение
+	} else {
+		parentId = sql.NullString{String: req.ParentId, Valid: true} // Устанавливаем значение
 	}
+	// if req.ParentId == "" {
+	// 	req.ParentId = id
+	// }
 
 	_, err := c.db.Exec(ctx, `
 		INSERT INTO category (
@@ -52,7 +59,7 @@ func (c *categoryRepo) CreateCategory(ctx context.Context, req *ct.CreateCategor
 		string(req.NameEn),
 		req.Active,
 		req.OrderNo,
-		string(req.ParentId))
+		parentId)
 	if err != nil {
 		log.Println("error while creating category")
 		return nil, err
@@ -105,10 +112,10 @@ func (c *categoryRepo) UpdateCategory(ctx context.Context, req *ct.UpdateCategor
 
 func (c *categoryRepo) GetListCategory(ctx context.Context, req *ct.GetListCategoryRequest) (*ct.GetListCategoryResponse, error) {
 	categories := ct.GetListCategoryResponse{}
-	filter := ""
+	filter_by_name := ""
 	offest := (req.Offset - 1) * req.Limit
 	if req.Search != "" {
-		filter = ` AND slug ILIKE '%` + req.Search + `%' `
+		filter_by_name = fmt.Sprintf(` AND (name_uz ILIKE '%%%v%%' OR name_ru ILIKE '%%%v%%' OR name_en ILIKE '%%%v%%')`, req.Search, req.Search, req.Search)
 	}
 	query := `SELECT
 				id,
@@ -120,7 +127,7 @@ func (c *categoryRepo) GetListCategory(ctx context.Context, req *ct.GetListCateg
 				order_no,
 				parent_id
 			FROM category
-			WHERE TRUE AND deleted_at is null ` + filter + `
+			WHERE parent_id IS NULL AND deleted_at IS NULL ` + filter_by_name + `
 			OFFSET $1 LIMIT $2
 `
 	rows, err := c.db.Query(ctx, query, offest, req.Limit)
@@ -146,10 +153,23 @@ func (c *categoryRepo) GetListCategory(ctx context.Context, req *ct.GetListCateg
 			return &categories, err
 		}
 		category.ParentId = pkg.NullStringToString(parent_id)
+		primaryKey := &ct.CategoryPrimaryKey{
+			Id: category.Id,
+		}
+
+		childCategories, err := c.GetCategoryById(ctx, primaryKey)
+		if err != nil {
+			return &categories, err
+		}
+		category.ChildCategories = childCategories.ChildCategories
 		categories.Categories = append(categories.Categories, &category)
 	}
 
-	err = c.db.QueryRow(ctx, `SELECT count(*) from category WHERE TRUE AND deleted_at is null`+filter+``).Scan(&categories.Count)
+	if err = rows.Err(); err != nil {
+		log.Println("error while getting all categories", err)
+	}
+
+	err = c.db.QueryRow(ctx, `SELECT count(*) from category WHERE TRUE AND deleted_at is null`+filter_by_name+``).Scan(&categories.Count)
 	if err != nil {
 		return &categories, err
 	}
@@ -160,6 +180,7 @@ func (c *categoryRepo) GetListCategory(ctx context.Context, req *ct.GetListCateg
 func (c *categoryRepo) GetCategoryById(ctx context.Context, id *ct.CategoryPrimaryKey) (*ct.GetCategory, error) {
 	var (
 		category   ct.GetCategory
+		parent_id  sql.NullString
 		created_at sql.NullString
 		updated_at sql.NullString
 	)
@@ -187,12 +208,51 @@ func (c *categoryRepo) GetCategoryById(ctx context.Context, id *ct.CategoryPrima
 		&category.NameEn,
 		&category.Active,
 		&category.OrderNo,
-		&category.ParentId,
+		&parent_id,
 		&created_at,
 		&updated_at); err != nil {
 		return &category, err
 	}
+	query1 := `SELECT
+				id,
+				slug,
+				name_uz,
+				name_ru,
+				name_en,
+				active,
+				order_no,
+				parent_id
+			FROM category
+			WHERE parent_id = $1`
+	rows1, err := c.db.Query(ctx, query1, id.Id)
 
+	if err != nil {
+		log.Println("error while getting all child categories")
+		return nil, err
+	}
+	defer rows1.Close()
+	for rows1.Next() {
+		var (
+			childCategory   ct.GetCategory
+			child_parent_id sql.NullString
+		)
+		if err = rows1.Scan(&childCategory.Id,
+			&childCategory.Slug,
+			&childCategory.NameUz,
+			&childCategory.NameRu,
+			&childCategory.NameEn,
+			&childCategory.Active,
+			&childCategory.OrderNo,
+			&child_parent_id); err != nil {
+			return &childCategory, err
+		}
+		childCategory.ParentId = pkg.NullStringToString(child_parent_id)
+		category.ChildCategories = append(category.ChildCategories, &childCategory)
+	}
+	if err = rows1.Err(); err != nil {
+		log.Println("error while getting child categories", err)
+	}
+	category.ParentId = pkg.NullStringToString(parent_id)
 	category.CreatedAt = pkg.NullStringToString(created_at)
 	category.UpdatedAt = pkg.NullStringToString(updated_at)
 

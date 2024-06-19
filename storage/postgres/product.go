@@ -3,6 +3,7 @@ package postgres
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	pd "go_catalog_service/genproto/product_service"
 	"go_catalog_service/pkg"
 	"go_catalog_service/storage"
@@ -30,7 +31,11 @@ func (c *productRepo) CreateProduct(ctx context.Context, req *pd.CreateProduct) 
 	id := uuid.NewString()
 	slug := slug.Make(req.NameEn)
 
-	_, err := c.db.Exec(ctx, `
+	tx, err := c.db.Begin(ctx)
+	if err != nil {
+		log.Println("error in transaction create product", err)
+	}
+	resp, err := tx.Exec(ctx, `
 		INSERT INTO product (
 			id,
 			slug,
@@ -62,9 +67,31 @@ func (c *productRepo) CreateProduct(ctx context.Context, req *pd.CreateProduct) 
 		req.OutPrice,
 		req.LeftCount,
 		req.DiscountPercent)
+
 	if err != nil {
-		log.Println("error while creating product")
+		tx.Rollback(ctx)
+		log.Println("error while creating product", resp)
 		return nil, err
+	}
+	pc_id := uuid.NewString()
+	resp2, err := tx.Exec(ctx, `
+	INSERT INTO product_categories (
+		id,
+		product_id,
+		category_id
+	) VALUES ($1,$2,$3)`,
+		pc_id,
+		id,
+		req.CategoryId)
+	if err != nil {
+		tx.Rollback(ctx)
+		log.Println("error while creating product_categories", resp2)
+		return nil, err
+	}
+	err = tx.Commit(ctx)
+	if err != nil {
+		tx.Rollback(ctx)
+		log.Println("error while creating product_categories transaction")
 	}
 
 	product, err := c.GetProductById(ctx, &pd.ProductPrimaryKey{Id: id})
@@ -72,6 +99,7 @@ func (c *productRepo) CreateProduct(ctx context.Context, req *pd.CreateProduct) 
 		log.Println("error while getting product by id")
 		return nil, err
 	}
+
 	return product, nil
 }
 
@@ -79,7 +107,11 @@ func (c *productRepo) UpdateProduct(ctx context.Context, req *pd.UpdateProduct) 
 
 	slug := slug.Make(req.NameEn)
 
-	_, err := c.db.Exec(ctx, `
+	tx, err := c.db.Begin(ctx)
+	if err != nil {
+		log.Println("error in transaction update product", err)
+	}
+	resp1, err := tx.Exec(ctx, `
 	UPDATE product SET
 		slug = $1,
 		name_uz = $2,
@@ -112,8 +144,28 @@ func (c *productRepo) UpdateProduct(ctx context.Context, req *pd.UpdateProduct) 
 		req.DiscountPercent,
 		req.Id)
 	if err != nil {
-		log.Println("error while updating product")
+		tx.Rollback(ctx)
+		log.Println("error while updating product", resp1)
 		return nil, err
+	}
+	resp2, err := tx.Exec(ctx, `
+	UPDATE product_categories SET
+		product_id = $1,
+		category_id = $2
+		WHERE product_id = $3
+	`,
+		req.Id,
+		req.CategoryId,
+		req.Id)
+	if err != nil {
+		tx.Rollback(ctx)
+		log.Println("error while updating productCategories", resp2)
+		return nil, err
+	}
+	err = tx.Commit(ctx)
+	if err != nil {
+		tx.Rollback(ctx)
+		log.Println("error while updating product_categories transaction", err)
 	}
 
 	product, err := c.GetProductById(ctx, &pd.ProductPrimaryKey{Id: req.Id})
@@ -130,10 +182,12 @@ func (c *productRepo) GetListProduct(ctx context.Context, req *pd.GetListProduct
 		created_at sql.NullString
 		updated_at sql.NullString
 	)
-	filter := ""
+	// filter_by_description := ""
+	filter_by_name := ""
 	offest := (req.Offset - 1) * req.Limit
 	if req.Search != "" {
-		filter = ` AND slug ILIKE '%` + req.Search + `%' `
+		filter_by_name = fmt.Sprintf(`AND (name_uz ILIKE '%%%v%%' OR name_ru ILIKE '%%%v%%' OR name_uz ILIKE '%%%v%%')`, req.Search, req.Search, req.Search)
+		// filter_by_description = fmt.Sprintf(`AND (description_uz ILIKE '%%%v%%' OR description_ru ILIKE '%%%v%%' OR description_uz ILIKE '%%%v%%')`, req.Search, req.Search, req.Search)
 	}
 	query := `SELECT
 				id,
@@ -153,7 +207,7 @@ func (c *productRepo) GetListProduct(ctx context.Context, req *pd.GetListProduct
 				created_at,
 				updated_at
 			FROM product
-			WHERE TRUE AND deleted_at is null ` + filter + `
+			WHERE TRUE AND deleted_at is null ` + filter_by_name + `
 			OFFSET $1 LIMIT $2
 `
 	rows, err := c.db.Query(ctx, query, offest, req.Limit)
@@ -191,7 +245,7 @@ func (c *productRepo) GetListProduct(ctx context.Context, req *pd.GetListProduct
 		products.Products = append(products.Products, &product)
 	}
 
-	err = c.db.QueryRow(ctx, `SELECT count(*) from product WHERE TRUE AND deleted_at is null `+filter+``).Scan(&products.Count)
+	err = c.db.QueryRow(ctx, `SELECT count(*) from product WHERE TRUE AND deleted_at is null `+filter_by_name+``).Scan(&products.Count)
 	if err != nil {
 		return &products, err
 	}
