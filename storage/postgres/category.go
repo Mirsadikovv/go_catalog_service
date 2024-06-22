@@ -263,6 +263,7 @@ func (c *categoryRepo) DeleteCategory(ctx context.Context, id *ct.CategoryPrimar
 
 	_, err := c.db.Exec(ctx, `
 		UPDATE category SET
+		active = false,
 		deleted_at = NOW()
 		WHERE id = $1
 		`,

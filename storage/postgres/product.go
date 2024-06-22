@@ -310,7 +310,8 @@ func (c *productRepo) GetProductById(ctx context.Context, id *pd.ProductPrimaryK
 func (c *productRepo) DeleteProduct(ctx context.Context, id *pd.ProductPrimaryKey) (emptypb.Empty, error) {
 
 	_, err := c.db.Exec(ctx, `
-		UPDATE product SET
+		UPDATE category SET
+		active = false,
 		deleted_at = NOW()
 		WHERE id = $1
 		`,
